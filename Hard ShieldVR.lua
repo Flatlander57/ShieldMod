@@ -432,6 +432,7 @@ function InitMeteors()
     local prevBlockImpactX = 0
     local renderThisChain = true
     local mirrorThisChain = false
+    local doubleNote = false
     local yDuplicateThisChain = false;
     local yDupOffset = 0;
     local xMirrorOffset = 0;
@@ -445,6 +446,7 @@ function InitMeteors()
     local raveColor = {103,53,176}
     local raveScale = {.06,.06,.06}
     local impactX, impactY, impactZ
+	local mirrorImpactX = impactX
     local isGroundTroop = false
     --local curveFactorX = 100
     --local curveFactorY = 35
@@ -587,6 +589,7 @@ function InitMeteors()
 
                 renderThisChain = true
                 mirrorThisChain = false
+				doubleNote = false
                 isGroundTroop = false
                 yDuplicateThisChain = false
                 yDupOffset = 0
@@ -639,47 +642,49 @@ function InitMeteors()
                 local minRequiredStrafeForMirroring = .25
                 local forceMirrorOn = (nextChainStartTime<0) or ((intensityFactor > .5) and (timeGapUntilNextChain>2.0)) or (timeGapUntilNextChain>4.0)
 
-                if forceMirrorOn then
-                    if chainType ~= 'rave' then
-                        if (intensityFactor > .75) or forceMirrorOn then -- big hit, end of song, or before a gap
-                            if forceMirrorOn then
-                                if math.abs(impactX)< minRequiredStrafeForMirroring then
-                                    if (impactX < 0) then
-                                       impactX = - minRequiredStrafeForMirroring - .01
-                                    else
-                                       impactX = minRequiredStrafeForMirroring + .01
-                                    end
-                                    if chaintype=='duck' then
-                                        prevBluePosition = -impactX
-                                        prevRedPosition = impactX
-                                    else
-                                        prevBluePosition = impactX
-                                        prevRedPosition = -impactX
-                                    end
-                                end
-                            end
-                            if math.abs(impactX) >= minRequiredStrafeForMirroring then
-                                if (rand() < doubleFactor) or forceMirrorOn then
-                                    mirrorThisChain = true
-                                    impactX = math.max(-1*maxMirroredX, math.min(maxMirroredX, impactX))
-                                    if chainType=='jump' then
-                                        mirrorScale = duckScale
-                                        mirrorColor = duckColor
-                                        prevRedPosition = - impactX
-                                        prevBluePosition = impactX
-                                    else
-                                        mirrorScale = jumpScale
-                                        mirrorColor = jumpColor
-                                        prevBluePosition = - impactX
-                                        prevRedPosition = impactX
-                                    end
-                                    prevRedTime = myChainEndTime
-                                    prevBlueTime = myChainEndTime
-                                end
-                            end
-                        end
-                    end
-                end
+				if chainType ~= 'rave' then
+					if (intensityFactor > .75) or forceMirrorOn then -- big hit, end of song, or before a gap
+						if forceMirrorOn then
+							if math.abs(impactX)< minRequiredStrafeForMirroring then
+								if (impactX < 0) then
+								   impactX = - minRequiredStrafeForMirroring - .01
+								else
+								   impactX = minRequiredStrafeForMirroring + .01
+								end
+								if chaintype=='duck' then
+									prevBluePosition = -impactX
+									prevRedPosition = impactX
+								else
+									prevBluePosition = impactX
+									prevRedPosition = -impactX
+								end
+							end
+						end
+						if math.abs(impactX) >= minRequiredStrafeForMirroring then
+							if (rand() < doubleFactor) or forceMirrorOn then
+								mirrorThisChain = true
+								impactX = math.max(-1*maxMirroredX, math.min(maxMirroredX, impactX))
+								if chainType=='jump' then
+									mirrorScale = duckScale
+									mirrorColor = duckColor
+									prevRedPosition = - impactX
+									prevBluePosition = impactX
+								else
+									mirrorScale = jumpScale
+									mirrorColor = jumpColor
+									prevBluePosition = - impactX
+									prevRedPosition = impactX
+								end
+								prevRedTime = myChainEndTime
+								prevBlueTime = myChainEndTime
+							end
+						end
+					end
+				end
+				
+				if mirrorThisChain and rand()<0.5 then
+					doubleNote = true
+				end
 
                 if chainType=='jump' then
                     color = jumpColor
@@ -703,7 +708,7 @@ function InitMeteors()
                 --    print("intensity:"..intensityFactor)
                 --end
 
-                if (not mirrorThisChain) and (chainType~='rave') then
+                if (chainType~='rave') then
                     --if (rand()>.9) and (chainLength>7) then
                     --    isBallChain = true
                     --end
@@ -829,11 +834,18 @@ function InitMeteors()
                             impactProxyVelocities[#impactProxyVelocities+1] = {0,0,0}
                         end
 
-                        if mirrorThisChain then
-                            local mirrorImpactX = -1*impactX
+                        if mirrorThisChain or doubleNote then
+                            mirrorImpactX = -1*impactX
                             if xMirrorOffset ~= 0 then
                                 mirrorImpactX = impactX + xMirrorOffset
                             end
+							if doubleNote then
+								if sweptImpactX > 0 then
+									mirrorImpactX = prevRightBlockImpactX+(math.random(50, 150)/100)
+								else
+									mirrorImpactX = prevRightBlockImpactX-(math.random(50, 150)/100)
+								end
+							end
                             meteorNodes[#meteorNodes+1] = i
                             meteorDirections[#meteorDirections+1] = headingNormalized -- {math.random() - .5, 0, math.random() - .5} -- the game normalizes these for us
                             meteorImpacts[#meteorImpacts+1] = {mirrorImpactX, adjustedImpactY, impactZ}
@@ -895,7 +907,7 @@ function InitMeteors()
                     impactProxyVelocities[#impactProxyVelocities+1] = {0,0,0}
 
                     if mirrorThisChain then
-                        local mirrorImpactX = -1*impactX
+                        --mirrorImpactX = -1*impactX
                         if xMirrorOffset ~= 0 then
                             mirrorImpactX = impactX + xMirrorOffset
                         end
