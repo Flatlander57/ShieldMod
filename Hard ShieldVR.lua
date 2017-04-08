@@ -841,9 +841,9 @@ function InitMeteors()
                             end
 							if doubleNote then
 								if sweptImpactX > 0 then
-									mirrorImpactX = prevBlockImpactX+(math.random(50, 150)/100)
-								else
 									mirrorImpactX = prevBlockImpactX-(math.random(50, 150)/100)
+								else
+									mirrorImpactX = prevBlockImpactX+(math.random(50, 150)/100)
 								end
 							end
                             meteorNodes[#meteorNodes+1] = i
