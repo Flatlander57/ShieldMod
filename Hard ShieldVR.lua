@@ -430,11 +430,13 @@ function InitMeteors()
     local prevBlockType = "jump"
     local prevBlockSongTime = 0
     local prevBlockImpactX = 0
+    local prevJumpBlockSongTime = 0
+    local prevJumpBlockImpactX = 0
+    local prevDuckBlockSongTime = 0
+    local prevDuckBlockImpactX = 0
     local renderThisChain = true
     local mirrorThisChain = false
     local doubleNote = false
-    local yDuplicateThisChain = false;
-    local yDupOffset = 0;
     local xMirrorOffset = 0;
     local mirrorColor
     local mirrorScale
@@ -520,7 +522,6 @@ function InitMeteors()
                 
                 if nodes[i] == 'duck' then
                     local delta = math.pow(track[i].seconds - prevRedTime, 2)
-                    prevRedTime = myChainEndTime
                     
                     impactX = prevRedPosition
                     local bound1 = math.max(0, math.min(1, math.pow(( ((impactX - redMinX) / delta) - minAccelRight) / maxAccelRight, 1/factAccelRight) ))
@@ -532,13 +533,11 @@ function InitMeteors()
                     else
                         impactX = impactX + (minAccelRight + maxAccelRight * math.pow(math.abs(modRand), factAccelRight)) * delta
                     end
-                    prevRedPosition = impactX
                     
                     --impactX = -.5*rand() + .75
                     --impactX = redMinX + rand() * redSpanX
                 elseif nodes[i] == 'jump' then
                     local delta = math.pow(track[i].seconds - prevBlueTime, 2)
-                    prevBlueTime = myChainEndTime
                     
                     impactX = prevBluePosition
                     local bound1 = math.max(0, math.min(1, math.pow(( ((blueMaxX - impactX) / delta) - minAccelLeft) / maxAccelLeft, 1/factAccelLeft) ))
@@ -550,16 +549,11 @@ function InitMeteors()
                     else
                         impactX = impactX + (minAccelLeft + maxAccelLeft * math.pow(math.abs(modRand), factAccelLeft)) * delta
                     end
-                    prevBluePosition = impactX
                     
                     --impactX = .5 - rand() * .75
                     --impactX = blueMaxX + rand() * blueSpanX
                 else
                     impactX = purpleSpanX*rand() + purpleMaxX
-                    prevBluePosition = impactX
-                    prevRedPosition = impactX
-                    prevBlueTime = myChainEndTime
-                    prevRedTime = myChainEndTime
                 end
                 
                 impactX = impactX * impactX_Scaler -- 1.7
@@ -591,8 +585,6 @@ function InitMeteors()
                 mirrorThisChain = false
 				doubleNote = false
                 isGroundTroop = false
-                yDuplicateThisChain = false
-                yDupOffset = 0
                 xMirrorOffset = 0
 
                 --if track[i].intensity < .5 and rand()>.4 then
@@ -651,13 +643,6 @@ function InitMeteors()
 								else
 								   impactX = minRequiredStrafeForMirroring + .01
 								end
-								if chaintype=='duck' then
-									prevBluePosition = -impactX
-									prevRedPosition = impactX
-								else
-									prevBluePosition = impactX
-									prevRedPosition = -impactX
-								end
 							end
 						end
 						if math.abs(impactX) >= minRequiredStrafeForMirroring then
@@ -667,16 +652,10 @@ function InitMeteors()
 								if chainType=='jump' then
 									mirrorScale = duckScale
 									mirrorColor = duckColor
-									prevRedPosition = - impactX
-									prevBluePosition = impactX
 								else
 									mirrorScale = jumpScale
 									mirrorColor = jumpColor
-									prevBluePosition = - impactX
-									prevRedPosition = impactX
 								end
-								prevRedTime = myChainEndTime
-								prevBlueTime = myChainEndTime
 							end
 						end
 					end
@@ -742,8 +721,6 @@ function InitMeteors()
                         mirrorThisChain = true
                         mirrorScale = jumpScale
                         mirrorColor = jumpColor
-                        --yDuplicateThisChain = true
-                        --yDupOffset = .2
                         xMirrorOffset = .5 --put the blues on the wrong side
                     end
                 end
@@ -803,7 +780,13 @@ function InitMeteors()
 
                             prevBlockImpactX = sweptImpactX
                         end
-
+						if chainType == "jump" then
+							prevBlueTime = myChainEndTime
+							prevBluePosition = sweptImpactX
+						elseif chainType == "duck" then
+							prevRedTime = myChainEndTime
+							prevRedPosition = sweptImpactX
+						end
                         meteorNodes[#meteorNodes+1] = i
                         meteorDirections[#meteorDirections+1] = headingNormalized -- {math.random() - .5, 0, math.random() - .5} -- the game normalizes these for us
                         meteorImpacts[#meteorImpacts+1] = {sweptImpactX, adjustedImpactY, impactZ}
@@ -818,26 +801,10 @@ function InitMeteors()
                         impactProxyScales[#impactProxyScales+1] = impactProxyScale
                         impactProxyVelocities[#impactProxyVelocities+1] = {0,0,0}
 
-                        if yDuplicateThisChain then
-                            meteorNodes[#meteorNodes+1] = i
-                            meteorDirections[#meteorDirections+1] = headingNormalized -- {math.random() - .5, 0, math.random() - .5} -- the game normalizes these for us
-                            meteorImpacts[#meteorImpacts+1] = {sweptImpactX, adjustedImpactY+yDupOffset, impactZ}
-                            meteorScales[#meteorScales+1] = scale
-                            --meteorCurveMaximums[#meteorCurveMaximums+1] = fif(isGroundTroop,{0,0,0},{impactX*curveFactorX, impactY*curveFactorY, 0})--impactY*60
-                            meteorCurveMaximums[#meteorCurveMaximums+1] = fif(isGroundTroop,{0,0,0},{sweptImpactX*curveFactorX, yCurve, 0})--impactY*60
-                            meteorColors[#meteorColors+1] = color
-                            meteorAlbedoColors[#meteorAlbedoColors+1] = {255,255,255}
-                            meteorSpeeds[#meteorSpeeds+1] = meteorSpeed -- fif(isGroundTroop, .025,.05)
-                            meteorTypes[#meteorTypes+1] = typeID
-
-                            impactProxyScales[#impactProxyScales+1] = impactProxyScale
-                            impactProxyVelocities[#impactProxyVelocities+1] = {0,0,0}
-                        end
-
                         if mirrorThisChain or doubleNote then
-                            mirrorImpactX = -1*impactX
+                            mirrorImpactX = -1*sweptImpactX
                             if xMirrorOffset ~= 0 then
-                                mirrorImpactX = impactX + xMirrorOffset
+                                mirrorImpactX = sweptImpactX + xMirrorOffset
                             end
 							if doubleNote then
 								if sweptImpactX > 0 then
@@ -845,6 +812,13 @@ function InitMeteors()
 								else
 									mirrorImpactX = prevBlockImpactX+(math.random(50, 150)/100)
 								end
+							end
+							if chainType == "jump" then
+								prevRedTime = myChainEndTime
+								prevRedPosition = mirrorImpactX
+							elseif chainType == "duck" then
+								prevBlueTime = myChainEndTime
+								prevBluePosition = mirrorImpactX
 							end
                             meteorNodes[#meteorNodes+1] = i
                             meteorDirections[#meteorDirections+1] = headingNormalized -- {math.random() - .5, 0, math.random() - .5} -- the game normalizes these for us
@@ -860,21 +834,6 @@ function InitMeteors()
                             impactProxyScales[#impactProxyScales+1] = impactProxyScale
                             impactProxyVelocities[#impactProxyVelocities+1] = {0,0,0}
 
-                            if yDuplicateThisChain then
-                                meteorNodes[#meteorNodes+1] = i
-                                meteorDirections[#meteorDirections+1] = headingNormalized -- {math.random() - .5, 0, math.random() - .5} -- the game normalizes these for us
-                                meteorImpacts[#meteorImpacts+1] = {mirrorImpactX, adjustedImpactY+yDupOffset, impactZ}
-                                meteorScales[#meteorScales+1] = mirrorScale
-                                --meteorCurveMaximums[#meteorCurveMaximums+1] = fif(isGroundTroop,{0,0,0},{-1*impactX*curveFactorX, impactY*curveFactorY, 0})
-                                meteorCurveMaximums[#meteorCurveMaximums+1] = fif(isGroundTroop,{0,0,0},{mirrorImpactX*curveFactorX, yCurve, 0})
-                                meteorColors[#meteorColors+1] = mirrorColor
-                                meteorAlbedoColors[#meteorAlbedoColors+1] = {255,255,255}
-                                meteorSpeeds[#meteorSpeeds+1] = meteorSpeed -- fif(isGroundTroop, .025,.05)
-                                meteorTypes[#meteorTypes+1] = mirrorTypeID
-
-                                impactProxyScales[#impactProxyScales+1] = impactProxyScale
-                                impactProxyVelocities[#impactProxyVelocities+1] = {0,0,0}
-                            end
                         end
                     end
                 else -- this is part of a chain tail
