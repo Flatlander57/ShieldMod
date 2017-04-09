@@ -430,10 +430,6 @@ function InitMeteors()
     local prevBlockType = "jump"
     local prevBlockSongTime = 0
     local prevBlockImpactX = 0
-    local prevJumpBlockSongTime = 0
-    local prevJumpBlockImpactX = 0
-    local prevDuckBlockSongTime = 0
-    local prevDuckBlockImpactX = 0
     local renderThisChain = true
     local mirrorThisChain = false
     local doubleNote = false
@@ -477,6 +473,7 @@ function InitMeteors()
     local prevRedPosition = 0
     local prevBlueTime = -5
     local prevRedTime = -5
+	local chainType = 'jump'
     
     for i=1,#track do
         if nodes[i]~=nil and nodes[i]~='run' and nodes[i]~='dirty' then
@@ -579,7 +576,7 @@ function InitMeteors()
 
                 local minSameBlockTypeSpacing = 0.00
 
-                local chainType = nodes[i]
+                chainType = nodes[i]
 
                 renderThisChain = true
                 mirrorThisChain = false
@@ -649,7 +646,7 @@ function InitMeteors()
 							if (rand() < doubleFactor) or forceMirrorOn then
 								mirrorThisChain = true
 								impactX = math.max(-1*maxMirroredX, math.min(maxMirroredX, impactX))
-								if chainType=='jump' then
+								if chainType== 'jump' then
 									mirrorScale = duckScale
 									mirrorColor = duckColor
 								else
@@ -750,9 +747,9 @@ function InitMeteors()
 
                 lastSentNode = i
 
-                if idInThisChain==1 or isBallChain or yDuplicateThisChain then --this is the head of a chain or a strafe chain (ballChain)
+                if idInThisChain==1 or isBallChain then --this is the head of a chain or a strafe chain (ballChain)
                     local allowRender =  true
-                    if isExtraLongBallChain and (idInThisChain>1) and (idInThisChain%2==0) then
+                    if (isExtraLongBallChain or (isBallChain and (mirrorThisChain or doubleNote))) and (idInThisChain>1) and (idInThisChain%2==0) then
                         allowRender = false -- for extra long chains, render only every other orb
                     end
                     
@@ -780,10 +777,10 @@ function InitMeteors()
 
                             prevBlockImpactX = sweptImpactX
                         end
-						if chainType == "jump" then
+						if chainType == 'jump' then
 							prevBlueTime = myChainEndTime
 							prevBluePosition = sweptImpactX
-						elseif chainType == "duck" then
+						elseif chainType == 'duck' then
 							prevRedTime = myChainEndTime
 							prevRedPosition = sweptImpactX
 						end
@@ -813,10 +810,10 @@ function InitMeteors()
 									mirrorImpactX = prevBlockImpactX+(math.random(50, 150)/100)
 								end
 							end
-							if chainType == "jump" then
+							if chainType == 'jump' then
 								prevRedTime = myChainEndTime
 								prevRedPosition = mirrorImpactX
-							elseif chainType == "duck" then
+							elseif chainType == 'duck' then
 								prevBlueTime = myChainEndTime
 								prevBluePosition = mirrorImpactX
 							end
