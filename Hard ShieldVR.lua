@@ -55,7 +55,6 @@ zImpact = .7                -- Mustn't change this
 maxNeighborXspan = 1        -- Shouldn't change this
 maxMirroredX = .5           -- Shouldn't change this
 
-convertPurplesToCrossUps = false    -- Mustn't change this
 
 allowMusicCutOutOnFail=false    -- If you like to hear when you miss
 
@@ -485,8 +484,9 @@ function InitMeteors()
                 isBallChain = false -- most of them are squids, not ball chains
                 isExtraLongBallChain = false
                 local chainLength = 0
+				lastChainEndTime = myChainEndTime
                 myChainStarTime = track[i].seconds
-
+				
                 local k=i
                 while k<=#track and nodes[k]~=nil and nodes[k]~='run' and nodes[k]~='dirty' do --use the biggest intensity found in the span
                     local maxTiltSpan = maxTilt - minTilt
@@ -615,21 +615,20 @@ function InitMeteors()
                             else
                                 impactX = 0
                             end
-                            prevBluePosition = impactX
                         elseif chainType == 'duck' then
                             if prevBlockImpactX > -.2 then
                                 impactX = -.35
                             else
                                 impactX = 0
                             end
-                            prevRedPosition = impactX
                         end
                     end
                 end
 
                 local timeGapUntilNextChain = nextChainStartTime - myChainEndTime
+                local timeGapSincePrevChain = lastChainEndTime - track[i].seconds
                 local minRequiredStrafeForMirroring = .25
-                local forceMirrorOn = (nextChainStartTime<0) or ((intensityFactor > .5) and (timeGapUntilNextChain>2.0)) or (timeGapUntilNextChain>4.0)
+                local forceMirrorOn = (timeGapSincePrevChain>0.2) and ((nextChainStartTime<0) or ((intensityFactor > .5) and (timeGapUntilNextChain>2.0)) or (timeGapUntilNextChain>4.0))
 
 				if chainType ~= 'rave' then
 					if (intensityFactor > .75) or forceMirrorOn then -- big hit, end of song, or before a gap
@@ -658,10 +657,17 @@ function InitMeteors()
 					end
 				end
 				
-				if mirrorThisChain and rand() < 0.5 then
+				if not mirrorThisChain and rand() < 0.2 and chainType ~= 'rave' then
 					doubleNote = true
+					if chainType== 'jump' then
+						mirrorScale = duckScale
+						mirrorColor = duckColor
+					else
+						mirrorScale = jumpScale
+						mirrorColor = jumpColor
+					end
 				end
-
+				
                 if chainType=='jump' then
                     color = jumpColor
                     scale = jumpScale
@@ -698,28 +704,17 @@ function InitMeteors()
                     --    isBallChain = true
                     --end
                 end
-
+				
+				if isBallChain then
+					doubleNote = false
+				end	
+				
                 sweepDir = 1
                 if impactX > 0 then sweepDir = -1 end
                 sweepPosX = impactX
 
                 if isBallChain and chainLength>66 then
                     isExtraLongBallChain = true
-                end
-
-                if convertPurplesToCrossUps then
-                    if chainType=='rave' then -- try turning purples into double vertical hits
-                        impactX = math.abs(impactX)
-                        chainType = 'duck'
-                        color = duckColor
-                        typeID = 1
-                        mirrorTypeID = 0
-                        scale = duckScale
-                        mirrorThisChain = true
-                        mirrorScale = jumpScale
-                        mirrorColor = jumpColor
-                        xMirrorOffset = .5 --put the blues on the wrong side
-                    end
                 end
 
                 chainstarter = false
@@ -749,7 +744,7 @@ function InitMeteors()
 
                 if idInThisChain==1 or isBallChain then --this is the head of a chain or a strafe chain (ballChain)
                     local allowRender =  true
-                    if (isExtraLongBallChain or (isBallChain and (mirrorThisChain or doubleNote))) and (idInThisChain>1) and (idInThisChain%2==0) then
+                    if isExtraLongBallChain and (idInThisChain>1) and (idInThisChain%2==0) then
                         allowRender = false -- for extra long chains, render only every other orb
                     end
                     
@@ -777,13 +772,21 @@ function InitMeteors()
 
                             prevBlockImpactX = sweptImpactX
                         end
+
 						if chainType == 'jump' then
 							prevBlueTime = myChainEndTime
-							prevBluePosition = sweptImpactX
+							prevBluePosition = sweptImpactX/impactX_Scaler
 						elseif chainType == 'duck' then
 							prevRedTime = myChainEndTime
-							prevRedPosition = sweptImpactX
+							prevRedPosition = sweptImpactX/impactX_Scaler
+						else
+							prevRedTime = myChainEndTime
+							prevRedPosition = sweptImpactX/impactX_Scaler
+							prevBlueTime = myChainEndTime
+							prevBluePosition = sweptImpactX/impactX_Scaler
 						end
+						ImpactX = sweptImpactX
+						
                         meteorNodes[#meteorNodes+1] = i
                         meteorDirections[#meteorDirections+1] = headingNormalized -- {math.random() - .5, 0, math.random() - .5} -- the game normalizes these for us
                         meteorImpacts[#meteorImpacts+1] = {sweptImpactX, adjustedImpactY, impactZ}
@@ -805,18 +808,46 @@ function InitMeteors()
                             end
 							if doubleNote then
 								if sweptImpactX > 0 then
-									mirrorImpactX = prevBlockImpactX-(math.random(50, 150)/100)
+									mirrorImpactX = sweptImpactX-(math.random(50, 150)/100)
 								else
-									mirrorImpactX = prevBlockImpactX+(math.random(50, 150)/100)
+									mirrorImpactX = sweptImpactX+(math.random(50, 150)/100)
 								end
+								if chainType == 'jump' then
+									local timePast = (track[i].seconds - prevRedTime)
+									local NearDistance = 3
+									if (timePast < 0.5) then
+										NearDistance = 0.15*(timePast*20)
+									end
+									local minX = prevRedPosition-NearDistance
+									if minX < -1 then minX = -1 end
+									local maxX = prevRedPosition+NearDistance
+									if maxX > 1 then maxX = 1 end
+									mirrorImpactX = math.max(mirrorImpactX, maxX)
+									mirrorImpactX = math.min(mirrorImpactX, minX)
+								elseif chainType == 'duck' then
+									local timePast = (track[i].seconds - prevBlueTime)
+									local NearDistance = 3
+									if (timePast < 0.5) then
+										NearDistance = 0.15*(timePast*20)
+									end
+									local minX = prevBluePosition-NearDistance
+									if minX < -1 then minX = -1 end
+									local maxX = prevBluePosition+NearDistance
+									if maxX > 1 then maxX = 1 end
+									mirrorImpactX = math.max(mirrorImpactX, maxX)
+									mirrorImpactX = math.min(mirrorImpactX, minX)
+								end
+
 							end
+
 							if chainType == 'jump' then
 								prevRedTime = myChainEndTime
-								prevRedPosition = mirrorImpactX
+								prevRedPosition = mirrorImpactX/impactX_Scaler
 							elseif chainType == 'duck' then
 								prevBlueTime = myChainEndTime
-								prevBluePosition = mirrorImpactX
+								prevBluePosition = mirrorImpactX/impactX_Scaler
 							end
+
                             meteorNodes[#meteorNodes+1] = i
                             meteorDirections[#meteorDirections+1] = headingNormalized -- {math.random() - .5, 0, math.random() - .5} -- the game normalizes these for us
                             meteorImpacts[#meteorImpacts+1] = {mirrorImpactX, adjustedImpactY, impactZ}
@@ -862,7 +893,7 @@ function InitMeteors()
                     impactProxyScales[#impactProxyScales+1] = impactProxyScale
                     impactProxyVelocities[#impactProxyVelocities+1] = {0,0,0}
 
-                    if mirrorThisChain then
+                    if mirrorThisChain or doubleNote then
                         --mirrorImpactX = -1*impactX
                         if xMirrorOffset ~= 0 then
                             mirrorImpactX = impactX + xMirrorOffset
